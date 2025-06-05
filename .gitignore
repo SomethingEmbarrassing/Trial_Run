@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+# Editor directories and metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
