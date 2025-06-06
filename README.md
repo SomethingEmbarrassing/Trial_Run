@@ -58,3 +58,11 @@ Then I answered:
 5. I would prefer it remembers previous interactions and keep a conversation history, but separate from my personal conversation history. If needed I could start him a new OpenAI account. Let's have it always on, and I can put a physical cut off switch in the mic line.
 6. The bot will be used only by my father. Plan to store the OpenAI API key on the Pi.
 7. I do want the chatbot code to be version-controlled in my Git repository. I am comfortable troubleshooting audio configuration on the pi.
+
+## Running the demo
+
+1. Ensure you have Python 3 installed.
+2. Run `python main.py` and type your message when prompted.
+3. The placeholder functions currently echo a canned response. Replace them
+   with real microphone input, OpenAI API calls, and text-to-speech output as
+you add dependencies.
