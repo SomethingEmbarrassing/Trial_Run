@@ -23,39 +23,4 @@ This repository contains the initial work for a Raspberry Pi–based voice chatb
    ```
    Add this line to your shell profile (e.g., `.bashrc`) so the application can access the key at runtime.
 
-## Roadmap / Next Steps
-- Maintain conversation history for context
-- Hardware controls for microphone and speaker
 
-### New Features
-- **Continuous listening mode**: the chatbot can now listen for speech input
-  in a loop. Run with microphone support (requires the ``speechrecognition``
-  package) or use ``--use-typing`` to fall back to keyboard input.
-- **Optional wake word**: supply ``--wake-word <word>`` to require a wake word
-  before the assistant records the next prompt.
-- **Text-to-speech options**: choose ``--tts-engine pyttsx3`` or ``gtts`` and
-  pass ``--no-tts`` to disable audio output entirely.
-
-## Usage
-
-Run the chatbot with the microphone and offline text-to-speech (``pyttsx3``) like so:
-```bash
-python3 main.py
-```
-
-If you prefer to type your prompts, add ``--use-typing``. To require a wake word
-before each prompt, supply ``--wake-word <word>``. You can switch to Google TTS
-with ``--tts-engine gtts`` or disable audio entirely using ``--no-tts``.
-
-The script sends each prompt to OpenAI using the ``OPENAI_API_KEY`` environment
-variable. Responses are spoken aloud with the chosen TTS engine and printed to
-the console.
-
-## Running Tests
-
-The unit tests use [pytest](https://pytest.org/). Install the dependency and run
-```
-pip install pytest
-pytest
-```
-from the repository root.
