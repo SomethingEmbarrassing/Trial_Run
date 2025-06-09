@@ -9,11 +9,31 @@ libraries later.
 
 from typing import Optional
 import argparse
+import os
+
+try:
+    import openai
+    from openai.error import OpenAIError
+except ImportError:  # pragma: no cover - openai may not be installed
+    openai = None  # type: ignore
+    OpenAIError = Exception  # type: ignore
 
 try:
     import speech_recognition as sr
 except ImportError:  # pragma: no cover - speech_recognition may not be installed
     sr = None
+
+# Configure OpenAI API if available
+if openai is not None:
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Conversation history for chat context
+history = [
+    {
+        "role": "system",
+        "content": "You are a helpful assistant."
+    }
+]
 
 
 def capture_audio(recognizer: Optional["sr.Recognizer"] = None, *, typed_input: bool = False) -> str:
@@ -55,17 +75,31 @@ def listen_for_wake_word(recognizer: Optional["sr.Recognizer"], wake_word: str, 
 
 
 def send_to_openai(prompt: str) -> str:
-    """Placeholder for sending a prompt to the OpenAI API.
+    """Send ``prompt`` to the OpenAI Chat API using ``history`` for context."""
 
-    Args:
-        prompt: The user's question or statement.
+    if openai is None:
+        print("[ERROR] The openai package is not installed.")
+        return "OpenAI support is unavailable."
 
-    Returns a mock response string. Replace the body of this function with
-    actual API calls once the `openai` package is installed and configured.
-    """
-    # TODO: integrate openai.Completion or Chat API
-    print("[DEBUG] Sending to OpenAI:", prompt)
-    return "This is a placeholder response from OpenAI."
+    if not openai.api_key:
+        print("[ERROR] OPENAI_API_KEY environment variable not set.")
+        return "OpenAI API key missing."
+
+    history.append({"role": "user", "content": prompt})
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=history,
+        )
+        text = response.choices[0].message["content"].strip()
+        history.append({"role": "assistant", "content": text})
+        return text
+    except OpenAIError as exc:
+        print(f"[ERROR] OpenAI API error: {exc}")
+        return "Sorry, I couldn't reach OpenAI."
+    except Exception as exc:  # pragma: no cover - unexpected errors
+        print(f"[ERROR] Unexpected error: {exc}")
+        return "Sorry, something went wrong."
 
 
 def speak_text(text: str) -> None:
