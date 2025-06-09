@@ -10,6 +10,19 @@ libraries later.
 from typing import Optional
 import argparse
 import os
+import tempfile
+
+try:
+    import pyttsx3
+except ImportError:  # pragma: no cover - pyttsx3 may not be installed
+    pyttsx3 = None  # type: ignore
+
+try:
+    from gtts import gTTS
+    from playsound import playsound
+except ImportError:  # pragma: no cover - gTTS/playsound may not be installed
+    gTTS = None  # type: ignore
+    playsound = None  # type: ignore
 
 try:
     import openai
@@ -102,16 +115,47 @@ def send_to_openai(prompt: str) -> str:
         return "Sorry, something went wrong."
 
 
-def speak_text(text: str) -> None:
-    """Placeholder for text-to-speech output.
+def speak_text(text: str, *, tts_enabled: bool = True, engine: str = "pyttsx3") -> None:
+    """Convert ``text`` to speech if possible and print it to the console.
 
-    Args:
-        text: The response text to vocalize.
-
-    Currently prints the text to the console. Replace with a TTS library
-    (e.g., pyttsx3 or gTTS) to output audio.
+    Parameters
+    ----------
+    text:
+        The response text to vocalize.
+    tts_enabled:
+        When ``False`` no audio will be played.
+    engine:
+        ``"pyttsx3"`` for offline speech or ``"gtts"`` for Google TTS.
     """
     print("Bot:", text)
+    if not tts_enabled:
+        return
+
+    if engine == "pyttsx3":
+        if pyttsx3 is None:
+            print("[WARN] pyttsx3 not installed")
+            return
+        try:
+            tts_engine = pyttsx3.init()
+            tts_engine.say(text)
+            tts_engine.runAndWait()
+        except Exception as exc:  # pragma: no cover - runtime TTS errors
+            print(f"[ERROR] pyttsx3 error: {exc}")
+    else:  # gtts
+        if gTTS is None or playsound is None:
+            print("[WARN] gTTS or playsound not installed")
+            return
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+                gTTS(text=text).save(fp.name)
+            playsound(fp.name)
+        except Exception as exc:  # pragma: no cover - runtime TTS errors
+            print(f"[ERROR] gTTS error: {exc}")
+        finally:
+            try:
+                os.remove(fp.name)
+            except OSError:
+                pass
 
 
 def main() -> None:
@@ -126,9 +170,22 @@ def main() -> None:
         action="store_true",
         help="Use typed input instead of microphone audio",
     )
+    parser.add_argument(
+        "--tts-engine",
+        choices=["pyttsx3", "gtts"],
+        default="pyttsx3",
+        help="Text-to-speech engine to use",
+    )
+    parser.add_argument(
+        "--no-tts",
+        action="store_true",
+        help="Disable audio playback of responses",
+    )
     args = parser.parse_args()
 
     recognizer = sr.Recognizer() if sr and not args.use_typing else None
+
+    tts_enabled = not args.no_tts
 
     print("Press Ctrl+C to exit.")
     try:
@@ -140,7 +197,7 @@ def main() -> None:
             if not user_text:
                 continue
             response = send_to_openai(user_text)
-            speak_text(response)
+            speak_text(response, tts_enabled=tts_enabled, engine=args.tts_engine)
     except KeyboardInterrupt:
         print("\nExiting.")
 
