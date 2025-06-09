@@ -25,7 +25,7 @@ This repository contains the initial work for a Raspberry Pi–based voice chatb
 
 ## Roadmap / Next Steps
 - Maintain conversation history for context
-- Hardware controls for microphone and speaker
+- A simple GPIO wrapper in `hardware.py` handles microphone and speaker control
 
 ### New Features
 - **Continuous listening mode**: the chatbot can now listen for speech input
