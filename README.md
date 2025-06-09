@@ -36,4 +36,17 @@ This repository contains the initial work for a Raspberry Pi–based voice chatb
 - **Text-to-speech options**: choose ``--tts-engine pyttsx3`` or ``gtts`` and
   pass ``--no-tts`` to disable audio output entirely.
 
-The previous version of this README contained the initial Q&A that outlined these ideas in detail.
+## Usage
+
+Run the chatbot with the microphone and offline text-to-speech (``pyttsx3``) like so:
+```bash
+python3 main.py
+```
+
+If you prefer to type your prompts, add ``--use-typing``. To require a wake word
+before each prompt, supply ``--wake-word <word>``. You can switch to Google TTS
+with ``--tts-engine gtts`` or disable audio entirely using ``--no-tts``.
+
+The script sends each prompt to OpenAI using the ``OPENAI_API_KEY`` environment
+variable. Responses are spoken aloud with the chosen TTS engine and printed to
+the console.
