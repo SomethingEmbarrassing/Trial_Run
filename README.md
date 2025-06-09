@@ -11,7 +11,7 @@ This repository contains the initial work for a Raspberry Pi–based voice chatb
    ```
 2. **Install required libraries**
    ```bash
-   pip install speechrecognition pyttsx3 openai
+   pip install speechrecognition pyttsx3 gtts playsound openai
    ```
    You can substitute another text-to-speech engine if preferred.
 3. **Configure your OpenAI API key**
@@ -30,5 +30,7 @@ This repository contains the initial work for a Raspberry Pi–based voice chatb
   package) or use ``--use-typing`` to fall back to keyboard input.
 - **Optional wake word**: supply ``--wake-word <word>`` to require a wake word
   before the assistant records the next prompt.
+- **Text-to-speech options**: choose ``--tts-engine pyttsx3`` or ``gtts`` and
+  pass ``--no-tts`` to disable audio output entirely.
 
 The previous version of this README contained the initial Q&A that outlined these ideas in detail.
