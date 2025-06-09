@@ -50,3 +50,12 @@ with ``--tts-engine gtts`` or disable audio entirely using ``--no-tts``.
 The script sends each prompt to OpenAI using the ``OPENAI_API_KEY`` environment
 variable. Responses are spoken aloud with the chosen TTS engine and printed to
 the console.
+
+## Running Tests
+
+The unit tests use [pytest](https://pytest.org/). Install the dependency and run
+```
+pip install pytest
+pytest
+```
+from the repository root.
