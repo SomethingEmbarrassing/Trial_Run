@@ -1,21 +1,57 @@
 # main.py
-"""Simple CLI interface for a Raspberry Pi chatbot.
+"""CLI interface for a Raspberry Pi chatbot with optional voice support.
 
-This file defines placeholder functions for capturing audio, sending text to
-OpenAI's API, and generating speech. The current implementation uses standard
-input/output so you can test the conversation loop without additional
-libraries. Audio input/output libraries can be added later.
+The initial version only accepted typed input. This update introduces
+continuous listening using the :mod:`speech_recognition` library and an
+optional wake word. Audio input/output can be replaced with more advanced
+libraries later.
 """
 
 from typing import Optional
+import argparse
+
+try:
+    import speech_recognition as sr
+except ImportError:  # pragma: no cover - speech_recognition may not be installed
+    sr = None
 
 
-def capture_audio() -> str:
-    """Placeholder for microphone input.
+def capture_audio(recognizer: Optional["sr.Recognizer"] = None, *, typed_input: bool = False) -> str:
+    """Capture a single utterance from the user.
 
-    Returns text typed by the user for now.
+    If ``typed_input`` is True or no microphone support is available, this
+    falls back to ``input()``. Otherwise it listens on the microphone using
+    ``speech_recognition``.
     """
-    return input("You: ")
+    if typed_input or recognizer is None or sr is None:
+        return input("You: ")
+
+    with sr.Microphone() as source:
+        print("Listening...")
+        audio = recognizer.listen(source)
+
+    try:
+        text = recognizer.recognize_google(audio)
+        print(f"You said: {text}")
+        return text
+    except sr.UnknownValueError:
+        print("[DEBUG] Could not understand audio")
+        return ""
+    except sr.RequestError as exc:
+        print(f"[DEBUG] Speech recognition error: {exc}")
+        return ""
+
+
+def listen_for_wake_word(recognizer: Optional["sr.Recognizer"], wake_word: str, *, typed_input: bool = False) -> None:
+    """Block until the wake word is detected."""
+    if not wake_word:
+        return
+    prompt = f"Say or type '{wake_word}' to activate."
+    print(prompt)
+    while True:
+        text = capture_audio(recognizer, typed_input=typed_input)
+        if wake_word.lower() in text.lower():
+            return
 
 
 def send_to_openai(prompt: str) -> str:
@@ -45,11 +81,28 @@ def speak_text(text: str) -> None:
 
 
 def main() -> None:
-    """Run a single-turn conversation loop."""
+    """Run the conversation loop."""
+    parser = argparse.ArgumentParser(description="Simple voice chatbot demo")
+    parser.add_argument(
+        "--wake-word",
+        help="Optional wake word required before capturing speech",
+    )
+    parser.add_argument(
+        "--use-typing",
+        action="store_true",
+        help="Use typed input instead of microphone audio",
+    )
+    args = parser.parse_args()
+
+    recognizer = sr.Recognizer() if sr and not args.use_typing else None
+
     print("Press Ctrl+C to exit.")
     try:
         while True:
-            user_text = capture_audio()
+            if args.wake_word:
+                listen_for_wake_word(recognizer, args.wake_word, typed_input=args.use_typing)
+
+            user_text = capture_audio(recognizer, typed_input=args.use_typing)
             if not user_text:
                 continue
             response = send_to_openai(user_text)
