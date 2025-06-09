@@ -20,17 +20,3 @@ This repository contains the initial work for a Raspberry Pi–based voice chatb
    ```
    Add this line to your shell profile (e.g., `.bashrc`) so the application can access the key at runtime.
 
-## Roadmap / Next Steps
-
-### New Features
-- **Continuous listening mode**: the chatbot can now listen for speech input
-  in a loop. Run with microphone support (requires the ``speechrecognition``
-  package) or use ``--use-typing`` to fall back to keyboard input.
-- **Optional wake word**: supply ``--wake-word <word>`` to require a wake word
-  before the assistant records the next prompt.
-- **Conversation history**: previous questions and answers are stored so
-  responses can include context once the OpenAI integration is complete.
-- **Hardware controls**: use `--mic-pin` and `--speaker-pin` to power the
-  microphone and speaker via GPIO.
-
-The previous version of this README contained the initial Q&A that outlined these ideas in detail.
