@@ -7,7 +7,7 @@ optional wake word. Audio input/output can be replaced with more advanced
 libraries later.
 """
 
-from typing import Optional
+from typing import Optional, List, Tuple
 import argparse
 
 try:
@@ -54,17 +54,20 @@ def listen_for_wake_word(recognizer: Optional["sr.Recognizer"], wake_word: str, 
             return
 
 
-def send_to_openai(prompt: str) -> str:
-    """Placeholder for sending a prompt to the OpenAI API.
+def send_to_openai(prompt: str, history: List[Tuple[str, str]]) -> str:
+    """Placeholder for sending a prompt to the OpenAI API with context.
 
     Args:
         prompt: The user's question or statement.
+        history: List of (speaker, text) tuples containing previous
+            conversation turns.
 
     Returns a mock response string. Replace the body of this function with
     actual API calls once the `openai` package is installed and configured.
     """
     # TODO: integrate openai.Completion or Chat API
     print("[DEBUG] Sending to OpenAI:", prompt)
+    print("[DEBUG] Conversation history:", history)
     return "This is a placeholder response from OpenAI."
 
 
@@ -96,16 +99,22 @@ def main() -> None:
 
     recognizer = sr.Recognizer() if sr and not args.use_typing else None
 
+    conversation_history: List[Tuple[str, str]] = []
+
     print("Press Ctrl+C to exit.")
     try:
         while True:
             if args.wake_word:
-                listen_for_wake_word(recognizer, args.wake_word, typed_input=args.use_typing)
+                listen_for_wake_word(
+                    recognizer, args.wake_word, typed_input=args.use_typing
+                )
 
             user_text = capture_audio(recognizer, typed_input=args.use_typing)
             if not user_text:
                 continue
-            response = send_to_openai(user_text)
+            conversation_history.append(("user", user_text))
+            response = send_to_openai(user_text, conversation_history)
+            conversation_history.append(("assistant", response))
             speak_text(response)
     except KeyboardInterrupt:
         print("\nExiting.")

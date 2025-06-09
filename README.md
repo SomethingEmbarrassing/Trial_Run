@@ -21,7 +21,6 @@ This repository contains the initial work for a Raspberry Pi–based voice chatb
    Add this line to your shell profile (e.g., `.bashrc`) so the application can access the key at runtime.
 
 ## Roadmap / Next Steps
-- Maintain conversation history for context
 - Hardware controls for microphone and speaker
 
 ### New Features
@@ -30,5 +29,7 @@ This repository contains the initial work for a Raspberry Pi–based voice chatb
   package) or use ``--use-typing`` to fall back to keyboard input.
 - **Optional wake word**: supply ``--wake-word <word>`` to require a wake word
   before the assistant records the next prompt.
+- **Conversation history**: previous questions and answers are stored so
+  responses can include context once the OpenAI integration is complete.
 
 The previous version of this README contained the initial Q&A that outlined these ideas in detail.
