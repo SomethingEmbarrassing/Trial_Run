@@ -11,12 +11,16 @@ This repository contains the initial work for a Raspberry Pi–based voice chatb
    ```
 2. **Install required libraries**
    ```bash
-   pip install speechrecognition pyttsx3 openai
+   pip install -r requirements.txt
    ```
-   You can substitute another text-to-speech engine if preferred.
+   The `requirements.txt` file lists the core packages (`speechrecognition`,
+   `pyttsx3` and `openai`) and notes the optional `RPi.GPIO` dependency for
+   Raspberry Pi hardware. You can substitute another text-to-speech engine if
+   preferred.
 3. **Configure your OpenAI API key**
    ```bash
    export OPENAI_API_KEY=<your-api-key>
    ```
    Add this line to your shell profile (e.g., `.bashrc`) so the application can access the key at runtime.
+
 

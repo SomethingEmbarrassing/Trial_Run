@@ -9,6 +9,27 @@ libraries later.
 
 from typing import Optional, List, Tuple
 import argparse
+import os
+import tempfile
+
+try:
+    import pyttsx3
+except ImportError:  # pragma: no cover - pyttsx3 may not be installed
+    pyttsx3 = None  # type: ignore
+
+try:
+    from gtts import gTTS
+    from playsound import playsound
+except ImportError:  # pragma: no cover - gTTS/playsound may not be installed
+    gTTS = None  # type: ignore
+    playsound = None  # type: ignore
+
+try:
+    import openai
+    from openai.error import OpenAIError
+except ImportError:  # pragma: no cover - openai may not be installed
+    openai = None  # type: ignore
+    OpenAIError = Exception  # type: ignore
 
 try:
     import RPi.GPIO as GPIO  # pragma: no cover - may not be installed
@@ -19,6 +40,18 @@ try:
     import speech_recognition as sr
 except ImportError:  # pragma: no cover - speech_recognition may not be installed
     sr = None
+
+# Configure OpenAI API if available
+if openai is not None:
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Conversation history for chat context
+history = [
+    {
+        "role": "system",
+        "content": "You are a helpful assistant."
+    }
+]
 
 
 class HardwareController:
@@ -120,37 +153,44 @@ def listen_for_wake_word(
             return
 
 
-def send_to_openai(prompt: str, history: List[Tuple[str, str]]) -> str:
-    """Placeholder for sending a prompt to the OpenAI API with context.
 
-    Args:
-        prompt: The user's question or statement.
-        history: List of (speaker, text) tuples containing previous
-            conversation turns.
+    if not openai.api_key:
+        print("[ERROR] OPENAI_API_KEY environment variable not set.")
+        return "OpenAI API key missing."
 
-    Returns a mock response string. Replace the body of this function with
-    actual API calls once the `openai` package is installed and configured.
-    """
-    # TODO: integrate openai.Completion or Chat API
-    print("[DEBUG] Sending to OpenAI:", prompt)
-    print("[DEBUG] Conversation history:", history)
-    return "This is a placeholder response from OpenAI."
+    history.append({"role": "user", "content": prompt})
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=history,
+        )
+        text = response.choices[0].message["content"].strip()
+        history.append({"role": "assistant", "content": text})
+        return text
+    except OpenAIError as exc:
+        print(f"[ERROR] OpenAI API error: {exc}")
+        return "Sorry, I couldn't reach OpenAI."
+    except Exception as exc:  # pragma: no cover - unexpected errors
+        print(f"[ERROR] Unexpected error: {exc}")
+        return "Sorry, something went wrong."
 
 
-def speak_text(text: str, *, hardware: Optional["HardwareController"] = None) -> None:
-    """Placeholder for text-to-speech output.
+def speak_text(text: str, *, tts_enabled: bool = True, engine: str = "pyttsx3") -> None:
+    """Convert ``text`` to speech if possible and print it to the console.
 
-    Args:
-        text: The response text to vocalize.
-
-    Currently prints the text to the console. Replace with a TTS library
-    (e.g., pyttsx3 or gTTS) to output audio.
+    Parameters
+    ----------
+    text:
+        The response text to vocalize.
+    tts_enabled:
+        When ``False`` no audio will be played.
+    engine:
+        ``"pyttsx3"`` for offline speech or ``"gtts"`` for Google TTS.
     """
     if hardware:
         hardware.speaker_on()
     print("Bot:", text)
-    if hardware:
-        hardware.speaker_off()
+
 
 
 def main() -> None:
@@ -166,22 +206,12 @@ def main() -> None:
         help="Use typed input instead of microphone audio",
     )
     parser.add_argument(
-        "--mic-pin",
-        type=int,
-        help="GPIO pin used to power the microphone",
-    )
-    parser.add_argument(
-        "--speaker-pin",
-        type=int,
-        help="GPIO pin used to power the speaker",
     )
     args = parser.parse_args()
 
     recognizer = sr.Recognizer() if sr and not args.use_typing else None
 
-    hardware = HardwareController(args.mic_pin, args.speaker_pin)
 
-    conversation_history: List[Tuple[str, str]] = []
 
     print("Press Ctrl+C to exit.")
     try:
@@ -199,11 +229,8 @@ def main() -> None:
             )
             if not user_text:
                 continue
-            conversation_history.append(("user", user_text))
-            response = send_to_openai(user_text, conversation_history)
-            conversation_history.append(("assistant", response))
-            speak_text(response, hardware=hardware)
-    except KeyboardInterrupt:
+
+                except KeyboardInterrupt:
         print("\nExiting.")
     finally:
         hardware.cleanup()
