@@ -1,0 +1,6 @@
+speechrecognition
+pyttsx3
+openai
+# Optional for Raspberry Pi hardware control
+# Uncomment the following line if running on a Pi
+# RPi.GPIO
