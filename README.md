@@ -16,7 +16,8 @@ This repository contains the initial work for a Raspberry Pi–based voice chatb
    The `requirements.txt` file lists the core packages (`speechrecognition`,
    `pyttsx3` and `openai`) and notes the optional `RPi.GPIO` dependency for
    Raspberry Pi hardware. You can substitute another text-to-speech engine if
-   preferred.
+   preferred. If you plan to run with ``--tts-engine gtts`` you will also need
+   the ``gtts`` and ``playsound`` packages installed.
 3. **Configure your OpenAI API key**
    ```bash
    export OPENAI_API_KEY=<your-api-key>
@@ -34,7 +35,8 @@ This repository contains the initial work for a Raspberry Pi–based voice chatb
 - **Optional wake word**: supply ``--wake-word <word>`` to require a wake word
   before the assistant records the next prompt.
 - **Text-to-speech options**: choose ``--tts-engine pyttsx3`` or ``gtts`` and
-  pass ``--no-tts`` to disable audio output entirely.
+  pass ``--no-tts`` to disable audio output entirely. When selecting
+  ``gtts`` you must have the ``gtts`` and ``playsound`` packages installed.
 
 ## Usage
 
@@ -46,6 +48,7 @@ python3 main.py
 If you prefer to type your prompts, add ``--use-typing``. To require a wake word
 before each prompt, supply ``--wake-word <word>``. You can switch to Google TTS
 with ``--tts-engine gtts`` or disable audio entirely using ``--no-tts``.
+Using the ``gtts`` engine requires the ``gtts`` and ``playsound`` packages.
 
 The script sends each prompt to OpenAI using the ``OPENAI_API_KEY`` environment
 variable. Responses are spoken aloud with the chosen TTS engine and printed to
