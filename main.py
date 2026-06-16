@@ -6,10 +6,10 @@ import argparse
 import importlib
 import json
 import os
-import tempfile
 from typing import Any, Optional
 
 from hardware import HardwareController
+import tts as tts_module
 
 
 def optional_import(module_name: str) -> Any:
@@ -20,9 +20,6 @@ def optional_import(module_name: str) -> Any:
         return None
 
 
-pyttsx3 = optional_import("pyttsx3")
-gtts_module = optional_import("gtts")
-playsound_module = optional_import("playsound")
 openai = optional_import("openai")
 sr = optional_import("speech_recognition")
 
@@ -125,40 +122,30 @@ def send_to_openai(prompt: str) -> str:
         return "Sorry, I couldn't reach OpenAI."
 
 
-def speak_text(text: str, *, tts_enabled: bool = True, engine: str = "pyttsx3", hardware_ctrl=None) -> None:
-    print("Bot:", text)
-
-    if hardware_ctrl is not None:
-        hardware_ctrl.speaker_on()
-
-    try:
-        if engine == "pyttsx3":
-            if pyttsx3 is None:
-                print("[WARN] pyttsx3 not installed")
-                return
-            tts_engine = pyttsx3.init()
-            tts_engine.say(text)
-            tts_engine.runAndWait()
-        else:
-            if gtts_module is None or playsound_module is None:
-                print("[WARN] gTTS or playsound not installed")
-                return
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-                gtts_module.gTTS(text=text).save(fp.name)
-            playsound_module.playsound(fp.name)
-            os.remove(fp.name)
-    except Exception as exc:  # pragma: no cover
-        print(f"[ERROR] TTS error: {exc}")
-    finally:
-        if hardware_ctrl is not None:
-            hardware_ctrl.speaker_off()
+def speak_text(
+    text: str,
+    *,
+    tts_enabled: bool = True,
+    engine: str = "pyttsx3",
+    voice_id: str = "",
+    hardware_ctrl=None,
+) -> None:
+    if not tts_enabled:
+        print("Bot:", text)
+        return
+    tts_module.speak(text, engine=engine, voice_id=voice_id, hardware_ctrl=hardware_ctrl)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Simple voice chatbot demo")
     parser.add_argument("--wake-word")
     parser.add_argument("--use-typing", action="store_true")
-    parser.add_argument("--tts-engine", choices=["pyttsx3", "gtts"], default="pyttsx3")
+    parser.add_argument(
+        "--tts-engine",
+        choices=["pyttsx3", "gtts", "elevenlabs"],
+        default="pyttsx3",
+    )
+    parser.add_argument("--voice-id", default="", help="ElevenLabs voice ID")
     parser.add_argument("--no-tts", action="store_true")
     parser.add_argument("--history-file")
     parser.add_argument("--mic-pin", type=int)
@@ -187,7 +174,13 @@ def main() -> None:
             if not user_text:
                 continue
             response = send_to_openai(user_text)
-            speak_text(response, tts_enabled=tts_enabled, engine=args.tts_engine, hardware_ctrl=hardware_ctrl)
+            speak_text(
+                response,
+                tts_enabled=tts_enabled,
+                engine=args.tts_engine,
+                voice_id=args.voice_id,
+                hardware_ctrl=hardware_ctrl,
+            )
             if args.history_file:
                 save_history(args.history_file)
     except KeyboardInterrupt:
