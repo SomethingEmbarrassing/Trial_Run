@@ -128,12 +128,19 @@ def speak_text(
     tts_enabled: bool = True,
     engine: str = "pyttsx3",
     voice_id: str = "",
+    server_url: str = "http://localhost:5050",
     hardware_ctrl=None,
 ) -> None:
     if not tts_enabled:
         print("Bot:", text)
         return
-    tts_module.speak(text, engine=engine, voice_id=voice_id, hardware_ctrl=hardware_ctrl)
+    tts_module.speak(
+        text,
+        engine=engine,
+        voice_id=voice_id,
+        server_url=server_url,
+        hardware_ctrl=hardware_ctrl,
+    )
 
 
 def main() -> None:
@@ -142,10 +149,15 @@ def main() -> None:
     parser.add_argument("--use-typing", action="store_true")
     parser.add_argument(
         "--tts-engine",
-        choices=["pyttsx3", "gtts", "elevenlabs"],
+        choices=["pyttsx3", "gtts", "elevenlabs", "local-rvc"],
         default="pyttsx3",
     )
     parser.add_argument("--voice-id", default="", help="ElevenLabs voice ID")
+    parser.add_argument(
+        "--tts-server",
+        default="http://localhost:5050",
+        help="URL of the local RVC TTS server (used with --tts-engine local-rvc)",
+    )
     parser.add_argument("--no-tts", action="store_true")
     parser.add_argument("--history-file")
     parser.add_argument("--mic-pin", type=int)
@@ -179,6 +191,7 @@ def main() -> None:
                 tts_enabled=tts_enabled,
                 engine=args.tts_engine,
                 voice_id=args.voice_id,
+                server_url=args.tts_server,
                 hardware_ctrl=hardware_ctrl,
             )
             if args.history_file:

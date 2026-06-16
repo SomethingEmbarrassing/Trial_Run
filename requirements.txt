@@ -2,6 +2,7 @@ speechrecognition
 pyttsx3
 openai
 elevenlabs
+requests
 # Optional for Raspberry Pi hardware control
 # Uncomment the following line if running on a Pi
 # RPi.GPIO
