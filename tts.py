@@ -20,6 +20,7 @@ def speak(
     *,
     engine: str = "pyttsx3",
     voice_id: str = "",
+    server_url: str = "http://localhost:5050",
     hardware_ctrl=None,
 ) -> None:
     print("Bot:", text)
@@ -29,6 +30,8 @@ def speak(
     try:
         if engine == "elevenlabs":
             _speak_elevenlabs(text, voice_id=voice_id)
+        elif engine == "local-rvc":
+            _speak_local_rvc(text, server_url=server_url)
         elif engine == "gtts":
             _speak_gtts(text)
         else:
@@ -90,6 +93,29 @@ def _speak_elevenlabs(text: str, *, voice_id: str = "") -> None:
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
         fp.write(audio_bytes)
+        fname = fp.name
+
+    try:
+        _play_audio_file(fname)
+    finally:
+        os.remove(fname)
+
+
+def _speak_local_rvc(text: str, *, server_url: str = "http://localhost:5050") -> None:
+    requests = _optional("requests")
+    if requests is None:
+        print("[WARN] requests package not installed — run: pip install requests")
+        return
+
+    try:
+        resp = requests.post(f"{server_url}/synthesize", json={"text": text}, timeout=30)
+        resp.raise_for_status()
+    except Exception as exc:
+        print(f"[ERROR] TTS server unreachable at {server_url}: {exc}")
+        return
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as fp:
+        fp.write(resp.content)
         fname = fp.name
 
     try:

@@ -31,6 +31,17 @@ def test_speak_routes_to_gtts(monkeypatch):
     assert called["text"] == "hello"
 
 
+def test_speak_routes_to_local_rvc(monkeypatch):
+    called = {}
+    monkeypatch.setattr(
+        tts, "_speak_local_rvc",
+        lambda text, server_url="": called.update({"text": text, "url": server_url}),
+    )
+    tts.speak("hello", engine="local-rvc", server_url="http://mypc:5050")
+    assert called["text"] == "hello"
+    assert called["url"] == "http://mypc:5050"
+
+
 def test_speak_routes_to_elevenlabs(monkeypatch):
     called = {}
     monkeypatch.setattr(
@@ -89,6 +100,43 @@ def test_elevenlabs_calls_api(monkeypatch, tmp_path):
         output_format="mp3_44100_128",
     )
     assert played["bytes"] == b"chunk1chunk2"
+
+
+def test_local_rvc_missing_requests(monkeypatch, capsys):
+    monkeypatch.setattr(tts, "_optional", lambda name: None)
+    tts._speak_local_rvc("hi", server_url="http://localhost:5050")
+    assert "requests" in capsys.readouterr().out
+
+
+def test_local_rvc_server_error(monkeypatch, capsys):
+    mock_requests = mock.MagicMock()
+    mock_requests.post.side_effect = ConnectionError("refused")
+    monkeypatch.setattr(tts, "_optional", lambda name: mock_requests if name == "requests" else None)
+    tts._speak_local_rvc("hi", server_url="http://localhost:5050")
+    assert "unreachable" in capsys.readouterr().out
+
+
+def test_local_rvc_plays_wav(monkeypatch):
+    fake_audio = b"RIFF....WAVEfmt "
+    mock_response = mock.MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.content = fake_audio
+
+    mock_requests = mock.MagicMock()
+    mock_requests.post.return_value = mock_response
+    monkeypatch.setattr(tts, "_optional", lambda name: mock_requests if name == "requests" else None)
+
+    played = {}
+    monkeypatch.setattr(tts, "_play_audio_file", lambda path: played.update({"path": path}))
+
+    tts._speak_local_rvc("You rang, Harry?", server_url="http://mypc:5050")
+
+    mock_requests.post.assert_called_once_with(
+        "http://mypc:5050/synthesize",
+        json={"text": "You rang, Harry?"},
+        timeout=30,
+    )
+    assert played["path"].endswith(".wav")
 
 
 def test_speak_hardware_ctrl_called(monkeypatch):

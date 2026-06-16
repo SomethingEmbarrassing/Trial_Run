@@ -1,0 +1,5 @@
+# PC-side TTS server dependencies
+flask
+rvc-python
+# Piper is installed as a binary — see README for instructions
+# https://github.com/rhasspy/piper/releases
