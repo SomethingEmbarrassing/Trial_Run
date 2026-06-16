@@ -1,9 +1,12 @@
 speechrecognition
 pyttsx3
 openai
+elevenlabs
 # Optional for Raspberry Pi hardware control
 # Uncomment the following line if running on a Pi
 # RPi.GPIO
+# Optional audio playback (pygame preferred on Pi, playsound for desktop)
+# pygame
 # Optional for Google TTS support
 # gtts
 # playsound

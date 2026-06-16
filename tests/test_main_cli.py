@@ -21,7 +21,7 @@ def test_cli_options(monkeypatch, tmp_path):
         events['prompt'] = prompt
         return 'hi'
 
-    def fake_speak_text(text, *, tts_enabled=True, engine='pyttsx3', hardware_ctrl=None):
+    def fake_speak_text(text, *, tts_enabled=True, engine='pyttsx3', voice_id='', hardware_ctrl=None):
         events['tts_enabled'] = tts_enabled
         events['engine'] = engine
         events['hw_speak'] = hardware_ctrl is not None
