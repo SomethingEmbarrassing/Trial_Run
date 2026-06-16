@@ -12,6 +12,9 @@ This repository contains a Raspberry Pi–based voice chatbot prototype. The lon
    ```bash
    export OPENAI_API_KEY=<your-api-key>
    ```
+   Add this line to your shell profile (e.g., `.bashrc`) so the application can access the key at runtime.
+
+
 3. Run:
    ```bash
    python3 main.py --use-typing

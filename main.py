@@ -56,7 +56,12 @@ def save_history(path: str) -> None:
 
 def capture_audio(recognizer=None, *, typed_input: bool = False, hardware_ctrl=None) -> str:
     if typed_input or recognizer is None or sr is None:
-        return input("You: ")
+        if hardware:
+            hardware.mic_on()
+        text = input("You: ")
+        if hardware:
+            hardware.mic_off()
+        return text
 
     if hardware_ctrl is not None:
         hardware_ctrl.mic_on()
@@ -122,8 +127,6 @@ def send_to_openai(prompt: str) -> str:
 
 def speak_text(text: str, *, tts_enabled: bool = True, engine: str = "pyttsx3", hardware_ctrl=None) -> None:
     print("Bot:", text)
-    if not tts_enabled:
-        return
 
     if hardware_ctrl is not None:
         hardware_ctrl.speaker_on()
