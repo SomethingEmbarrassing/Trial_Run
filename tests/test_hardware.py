@@ -29,3 +29,19 @@ def test_hardware_controller_calls_gpio(monkeypatch):
     mock_gpio.output.assert_any_call(3, 0)
     mock_gpio.output.assert_any_call(4, 0)
     mock_gpio.cleanup.assert_called_once()
+
+
+def test_hardware_controller_context_manager(monkeypatch):
+    mock_gpio = mock.MagicMock()
+    mock_gpio.BCM = "BCM"
+    mock_gpio.OUT = "OUT"
+    mock_gpio.HIGH = 1
+    mock_gpio.LOW = 0
+    monkeypatch.setattr(hardware, "GPIO", mock_gpio)
+
+    with hardware.HardwareController(1, 2) as ctrl:
+        ctrl.mic_on()
+        ctrl.speaker_on()
+
+    mock_gpio.setmode.assert_called_with("BCM")
+    mock_gpio.cleanup.assert_called()

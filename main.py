@@ -1,112 +1,60 @@
-# main.py
-"""CLI interface for a Raspberry Pi chatbot with optional voice support.
+"""CLI interface for a Raspberry Pi chatbot with optional voice support."""
 
-The initial version only accepted typed input. This update introduces
-continuous listening using the :mod:`speech_recognition` library and an
-optional wake word. Audio input/output can be replaced with more advanced
-libraries later.
-"""
+from __future__ import annotations
 
-from typing import Optional, List, Tuple
 import argparse
+import importlib
+import json
 import os
 import tempfile
+from typing import Any, Optional
 
-try:
-    import pyttsx3
-except ImportError:  # pragma: no cover - pyttsx3 may not be installed
-    pyttsx3 = None  # type: ignore
+from hardware import HardwareController
 
-try:
-    from gtts import gTTS
-    from playsound import playsound
-except ImportError:  # pragma: no cover - gTTS/playsound may not be installed
-    gTTS = None  # type: ignore
-    playsound = None  # type: ignore
 
-try:
-    import openai
-    from openai.error import OpenAIError
-except ImportError:  # pragma: no cover - openai may not be installed
-    openai = None  # type: ignore
-    OpenAIError = Exception  # type: ignore
+def optional_import(module_name: str) -> Any:
+    """Import ``module_name`` and return ``None`` if unavailable."""
+    try:
+        return importlib.import_module(module_name)
+    except Exception:  # pragma: no cover - optional dependency
+        return None
 
-try:
-    import RPi.GPIO as GPIO  # pragma: no cover - may not be installed
-except ImportError:  # pragma: no cover - GPIO library might not be available
-    GPIO = None
 
-try:
-    import speech_recognition as sr
-except ImportError:  # pragma: no cover - speech_recognition may not be installed
-    sr = None
+pyttsx3 = optional_import("pyttsx3")
+gtts_module = optional_import("gtts")
+playsound_module = optional_import("playsound")
+openai = optional_import("openai")
+sr = optional_import("speech_recognition")
 
-# Configure OpenAI API if available
-if openai is not None:
+if openai is not None and hasattr(openai, "api_key"):
     openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Conversation history for chat context
-history = [
-    {
-        "role": "system",
-        "content": "You are a helpful assistant."
-    }
-]
+history = [{"role": "system", "content": "You are a helpful assistant."}]
 
 
-class HardwareController:
-    """Control GPIO pins for microphone and speaker power."""
-
-    def __init__(self, mic_pin: Optional[int] = None, speaker_pin: Optional[int] = None) -> None:
-        self.mic_pin = mic_pin
-        self.speaker_pin = speaker_pin
-        self.gpio = GPIO
-        if self.gpio and (mic_pin is not None or speaker_pin is not None):
-            self.gpio.setmode(self.gpio.BCM)
-            if mic_pin is not None:
-                self.gpio.setup(mic_pin, self.gpio.OUT, initial=self.gpio.HIGH)
-            if speaker_pin is not None:
-                self.gpio.setup(speaker_pin, self.gpio.OUT, initial=self.gpio.HIGH)
-        elif mic_pin is not None or speaker_pin is not None:
-            print("[DEBUG] RPi.GPIO not available; hardware control disabled")
-
-    def mic_on(self) -> None:
-        if self.gpio and self.mic_pin is not None:
-            self.gpio.output(self.mic_pin, self.gpio.HIGH)
-        print("[DEBUG] Mic ON")
-
-    def mic_off(self) -> None:
-        if self.gpio and self.mic_pin is not None:
-            self.gpio.output(self.mic_pin, self.gpio.LOW)
-        print("[DEBUG] Mic OFF")
-
-    def speaker_on(self) -> None:
-        if self.gpio and self.speaker_pin is not None:
-            self.gpio.output(self.speaker_pin, self.gpio.HIGH)
-        print("[DEBUG] Speaker ON")
-
-    def speaker_off(self) -> None:
-        if self.gpio and self.speaker_pin is not None:
-            self.gpio.output(self.speaker_pin, self.gpio.LOW)
-        print("[DEBUG] Speaker OFF")
-
-    def cleanup(self) -> None:
-        if self.gpio and (self.mic_pin is not None or self.speaker_pin is not None):
-            self.gpio.cleanup()
+def load_history(path: str) -> None:
+    if not path or not os.path.exists(path):
+        return
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            history.extend(item for item in data if isinstance(item, dict))
+    except Exception as exc:  # pragma: no cover
+        print(f"[WARN] Could not load history file: {exc}")
 
 
-def capture_audio(
-    recognizer: Optional["sr.Recognizer"] = None,
-    *,
-    typed_input: bool = False,
-    hardware: Optional["HardwareController"] = None,
-) -> str:
-    """Capture a single utterance from the user.
+def save_history(path: str) -> None:
+    if not path:
+        return
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(history[1:], f, indent=2)
+    except Exception as exc:  # pragma: no cover
+        print(f"[WARN] Could not save history file: {exc}")
 
-    If ``typed_input`` is True or no microphone support is available, this
-    falls back to ``input()``. Otherwise it listens on the microphone using
-    ``speech_recognition``.
-    """
+
+def capture_audio(recognizer=None, *, typed_input: bool = False, hardware_ctrl=None) -> str:
     if typed_input or recognizer is None or sr is None:
         if hardware:
             hardware.mic_on()
@@ -115,15 +63,12 @@ def capture_audio(
             hardware.mic_off()
         return text
 
-    with sr.Microphone() as source:
-        if hardware:
-            hardware.mic_on()
-        print("Listening...")
-        audio = recognizer.listen(source)
-        if hardware:
-            hardware.mic_off()
-
+    if hardware_ctrl is not None:
+        hardware_ctrl.mic_on()
     try:
+        with sr.Microphone() as source:
+            print("Listening...")
+            audio = recognizer.listen(source)
         text = recognizer.recognize_google(audio)
         print(f"You said: {text}")
         return text
@@ -133,107 +78,123 @@ def capture_audio(
     except sr.RequestError as exc:
         print(f"[DEBUG] Speech recognition error: {exc}")
         return ""
+    finally:
+        if hardware_ctrl is not None:
+            hardware_ctrl.mic_off()
 
 
-def listen_for_wake_word(
-    recognizer: Optional["sr.Recognizer"],
-    wake_word: str,
-    *,
-    typed_input: bool = False,
-    hardware: Optional["HardwareController"] = None,
-) -> None:
-    """Block until the wake word is detected."""
+def listen_for_wake_word(recognizer, wake_word: str, *, typed_input: bool = False, hardware_ctrl=None) -> None:
     if not wake_word:
         return
-    prompt = f"Say or type '{wake_word}' to activate."
-    print(prompt)
+    print(f"Say or type '{wake_word}' to activate.")
     while True:
-        text = capture_audio(recognizer, typed_input=typed_input, hardware=hardware)
+        text = capture_audio(recognizer, typed_input=typed_input, hardware_ctrl=hardware_ctrl)
         if wake_word.lower() in text.lower():
             return
 
 
+def _send_with_legacy_openai(prompt: str) -> str:
+    history.append({"role": "user", "content": prompt})
+    response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=history)
+    text = response.choices[0].message["content"].strip()
+    history.append({"role": "assistant", "content": text})
+    return text
 
-    if not openai.api_key:
+
+def send_to_openai(prompt: str) -> str:
+    if openai is None:
+        print("[ERROR] The openai package is not installed.")
+        return "OpenAI support is unavailable."
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
         print("[ERROR] OPENAI_API_KEY environment variable not set.")
         return "OpenAI API key missing."
 
-    history.append({"role": "user", "content": prompt})
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=history,
-        )
-        text = response.choices[0].message["content"].strip()
-        history.append({"role": "assistant", "content": text})
-        return text
-    except OpenAIError as exc:
+        if hasattr(openai, "OpenAI"):
+            client = openai.OpenAI(api_key=api_key)
+            history.append({"role": "user", "content": prompt})
+            response = client.chat.completions.create(model="gpt-4o-mini", messages=history)
+            text = (response.choices[0].message.content or "").strip()
+            history.append({"role": "assistant", "content": text})
+            return text
+        return _send_with_legacy_openai(prompt)
+    except Exception as exc:  # pragma: no cover
         print(f"[ERROR] OpenAI API error: {exc}")
         return "Sorry, I couldn't reach OpenAI."
-    except Exception as exc:  # pragma: no cover - unexpected errors
-        print(f"[ERROR] Unexpected error: {exc}")
-        return "Sorry, something went wrong."
 
 
-def speak_text(text: str, *, tts_enabled: bool = True, engine: str = "pyttsx3") -> None:
-    """Convert ``text`` to speech if possible and print it to the console.
-
-    Parameters
-    ----------
-    text:
-        The response text to vocalize.
-    tts_enabled:
-        When ``False`` no audio will be played.
-    engine:
-        ``"pyttsx3"`` for offline speech or ``"gtts"`` for Google TTS.
-    """
-    if hardware:
-        hardware.speaker_on()
+def speak_text(text: str, *, tts_enabled: bool = True, engine: str = "pyttsx3", hardware_ctrl=None) -> None:
     print("Bot:", text)
 
+    if hardware_ctrl is not None:
+        hardware_ctrl.speaker_on()
+
+    try:
+        if engine == "pyttsx3":
+            if pyttsx3 is None:
+                print("[WARN] pyttsx3 not installed")
+                return
+            tts_engine = pyttsx3.init()
+            tts_engine.say(text)
+            tts_engine.runAndWait()
+        else:
+            if gtts_module is None or playsound_module is None:
+                print("[WARN] gTTS or playsound not installed")
+                return
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+                gtts_module.gTTS(text=text).save(fp.name)
+            playsound_module.playsound(fp.name)
+            os.remove(fp.name)
+    except Exception as exc:  # pragma: no cover
+        print(f"[ERROR] TTS error: {exc}")
+    finally:
+        if hardware_ctrl is not None:
+            hardware_ctrl.speaker_off()
 
 
 def main() -> None:
-    """Run the conversation loop."""
     parser = argparse.ArgumentParser(description="Simple voice chatbot demo")
-    parser.add_argument(
-        "--wake-word",
-        help="Optional wake word required before capturing speech",
-    )
-    parser.add_argument(
-        "--use-typing",
-        action="store_true",
-        help="Use typed input instead of microphone audio",
-    )
-    parser.add_argument(
-    )
+    parser.add_argument("--wake-word")
+    parser.add_argument("--use-typing", action="store_true")
+    parser.add_argument("--tts-engine", choices=["pyttsx3", "gtts"], default="pyttsx3")
+    parser.add_argument("--no-tts", action="store_true")
+    parser.add_argument("--history-file")
+    parser.add_argument("--mic-pin", type=int)
+    parser.add_argument("--speaker-pin", type=int)
     args = parser.parse_args()
 
     recognizer = sr.Recognizer() if sr and not args.use_typing else None
+    tts_enabled = not args.no_tts
 
+    hardware_ctrl = None
+    if args.mic_pin is not None and args.speaker_pin is not None:
+        try:
+            hardware_ctrl = HardwareController(args.mic_pin, args.speaker_pin)
+        except Exception as exc:  # pragma: no cover
+            print(f"[WARN] Could not initialize hardware controller: {exc}")
 
+    if args.history_file:
+        load_history(args.history_file)
 
     print("Press Ctrl+C to exit.")
     try:
         while True:
             if args.wake_word:
-                listen_for_wake_word(
-                    recognizer,
-                    args.wake_word,
-                    typed_input=args.use_typing,
-                    hardware=hardware,
-                )
-
-            user_text = capture_audio(
-                recognizer, typed_input=args.use_typing, hardware=hardware
-            )
+                listen_for_wake_word(recognizer, args.wake_word, typed_input=args.use_typing, hardware_ctrl=hardware_ctrl)
+            user_text = capture_audio(recognizer, typed_input=args.use_typing, hardware_ctrl=hardware_ctrl)
             if not user_text:
                 continue
-
-                except KeyboardInterrupt:
+            response = send_to_openai(user_text)
+            speak_text(response, tts_enabled=tts_enabled, engine=args.tts_engine, hardware_ctrl=hardware_ctrl)
+            if args.history_file:
+                save_history(args.history_file)
+    except KeyboardInterrupt:
         print("\nExiting.")
     finally:
-        hardware.cleanup()
+        if hardware_ctrl is not None:
+            hardware_ctrl.cleanup()
 
 
 if __name__ == "__main__":

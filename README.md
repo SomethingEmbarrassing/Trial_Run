@@ -1,26 +1,58 @@
 # Trial_Run
 
 ## Project Overview
-This repository contains the initial work for a Raspberry Pi–based voice chatbot. The goal is to embed a Pi 4 inside a plastic skull with a microphone and speaker so it can converse using OpenAI and sound like Bob the skull from *The Dresden Files*. Responses will be generated using the OpenAI API and read aloud via a text-to-speech engine.
+This repository contains a Raspberry Pi–based voice chatbot prototype. The long-term goal is to run it inside a prop skull with a microphone, speaker, wake word activation, and OpenAI-backed conversation.
 
 ## Getting Started
-1. **Install Python 3** (if not already present)
-   ```bash
-   sudo apt-get update
-   sudo apt-get install python3 python3-pip
-   ```
-2. **Install required libraries**
+1. Install Python and dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-   The `requirements.txt` file lists the core packages (`speechrecognition`,
-   `pyttsx3` and `openai`) and notes the optional `RPi.GPIO` dependency for
-   Raspberry Pi hardware. You can substitute another text-to-speech engine if
-   preferred.
-3. **Configure your OpenAI API key**
+2. Set your API key:
    ```bash
    export OPENAI_API_KEY=<your-api-key>
    ```
    Add this line to your shell profile (e.g., `.bashrc`) so the application can access the key at runtime.
 
 
+3. Run:
+   ```bash
+   python3 main.py --use-typing
+   ```
+
+## Current Features
+- Continuous conversation loop
+- Optional wake word (`--wake-word`)
+- Typed input fallback (`--use-typing`)
+- TTS via `pyttsx3` or `gtts` (`--tts-engine`)
+- Optional history persistence (`--history-file`)
+- Optional GPIO mic/speaker control (`--mic-pin`, `--speaker-pin`)
+
+## Refreshed Roadmap (2026)
+
+### Phase 1: Stabilize the Core (next)
+- Add structured configuration (env + config file + CLI precedence)
+- Add robust logging (info/debug/error) and better runtime diagnostics
+- Add history limits/summarization to prevent token bloat
+- Expand tests around persistence and error paths
+
+### Phase 2: Modernize OpenAI Integration
+- Add a dedicated OpenAI client module
+- Support model configuration by CLI/env
+- Add retry/backoff for transient API failures
+- Add optional streaming responses for lower perceived latency
+
+### Phase 3: Hardware Reliability
+- Improve GPIO abstraction to support non-RPi dev environments cleanly
+- Add push-to-talk mode and audio device selection
+- Add graceful recovery for microphone/speaker initialization failures
+
+### Phase 4: Product Experience
+- Persona prompt management (e.g., “Bob voice profile” presets)
+- Session commands (clear history, save snapshot, status)
+- Packaging for Raspberry Pi deployment (systemd service + install script)
+
+## Running Tests
+```bash
+pytest -q
+```

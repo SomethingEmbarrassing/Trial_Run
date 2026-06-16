@@ -32,3 +32,10 @@ class HardwareController:
 
     def cleanup(self) -> None:
         GPIO.cleanup()
+
+    # Allow use as a context manager for automatic cleanup
+    def __enter__(self) -> "HardwareController":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.cleanup()
